@@ -34,6 +34,8 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@agentclientprotocol/sdk`](https://github.com/agentclientprotocol/typescript-sdk) | Apache-2.0 |
 | [`@anthropic-ai/claude-agent-sdk`](https://github.com/anthropics/claude-agent-sdk-typescript) | SEE LICENSE IN README.md |
 | [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | MIT |
+| [`@aws-crypto/sha256-js`](https://github.com/git@github.com:aws/aws-sdk-js-crypto-helpers) | Apache-2.0 |
+| [`@aws-sdk/credential-provider-node`](https://github.com/aws/aws-sdk-js-v3) | Apache-2.0 |
 | [`@babel/code-frame`](https://github.com/babel/babel) | MIT |
 | [`@earendil-works/pi-ai`](https://github.com/earendil-works/pi) | MIT |
 | [`@joplin/turndown-plugin-gfm`](https://github.com/laurent22/joplin-turndown-plugin-gfm) | MIT |
@@ -47,6 +49,8 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@opentelemetry/resources`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/sdk-logs`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@shikijs/langs`](https://github.com/shikijs/shiki) | MIT |
+| [`@smithy/signature-v4`](https://github.com/smithy-lang/smithy-typescript) | Apache-2.0 |
+| [`@smithy/types`](https://github.com/smithy-lang/smithy-typescript) | Apache-2.0 |
 | [`@standard-schema/spec`](https://github.com/standard-schema/standard-schema) | MIT |
 | [`@tanstack/react-virtual`](https://github.com/TanStack/virtual) | MIT |
 | [`@types/mdast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |

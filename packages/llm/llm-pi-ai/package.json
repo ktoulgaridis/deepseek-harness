@@ -43,8 +43,12 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "^0.82.1",
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@earendil-works/pi-ai": "^0.84.3",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@aws-crypto/sha256-js": "5.2.0",
+    "@aws-sdk/credential-provider-node": "3.972.55",
+    "@smithy/signature-v4": "5.4.7",
+    "@smithy/types": "4.14.4"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-attachment": "workspace:^",

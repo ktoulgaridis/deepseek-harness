@@ -84,10 +84,26 @@ export type {
   PiAiThinkingFormat,
 } from './catalog.ts'
 
+/** SigV4 signing parameters for a route that authenticates with AWS SigV4. */
+export interface PiAiSigV4Profile {
+  /** SigV4 service name signed into the credential scope (Bedrock Mantle: `bedrock-mantle`). */
+  service: string
+  /** AWS region signed into the credential scope. */
+  region: string
+}
+
 /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
 export interface PiAiProviderProfile {
   /** Credential reference (environment-variable name) resolved per request through `ctx.credentials`. */
   apiKeyEnv?: string
+  /**
+   * AWS SigV4 signing for a route fronted by an AWS gateway (Bedrock Mantle).
+   * Present, the route signs every request with credentials from the AWS SDK
+   * default provider chain — no `apiKeyEnv` and no minted token — and refreshes
+   * them from the ambient session. Mutually exclusive with `apiKeyEnv`, which
+   * remains the bearer fallback.
+   */
+  sigv4?: PiAiSigV4Profile
   /** Name shown by configuration surfaces; defaults to the route key. */
   displayName?: string
   /**
@@ -304,8 +320,18 @@ const modelProfile: z<PiAiModelProfile> = z.object({
 /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
 const modelOverride: z<PiAiModelOverride> = z.object(modelFields)
 
+// Neither field is `.required()`: schemastery materializes an absent `sigv4`
+// object as `{}`, and a required field would then fail every route that does
+// not sign. Resolution reads the materialized value and treats a route as
+// SigV4 only when it names service and region, refusing a partial one.
+const sigv4Profile: z<PiAiSigV4Profile> = z.object({
+  service: z.string(),
+  region: z.string(),
+})
+
 const profile = z.object({
   apiKeyEnv: z.string().role('credential-ref'),
+  sigv4: sigv4Profile,
   displayName: z.string(),
   api: z.union(supportedProtocols()),
   baseURL: z.string(),
@@ -393,6 +419,27 @@ export function resolveProfiles(
     if (source.displayName !== undefined && source.displayName.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)
     }
+    // schemastery materializes an absent `sigv4` as `{}`, so read it as
+    // possibly-partial: a route signs only when it names both service and
+    // region, and a route that names one but not the other is a misconfiguration.
+    const rawSigv4 = source.sigv4 as { service?: string; region?: string } | undefined
+    const sigv4Named = rawSigv4 !== undefined
+      && (rawSigv4.service !== undefined || rawSigv4.region !== undefined)
+    let sigv4: PiAiSigV4Profile | undefined
+    if (sigv4Named) {
+      if (source.apiKeyEnv !== undefined) {
+        throw new Error(
+          `llm-pi-ai: provider "${provider}" sets both sigv4 and apiKeyEnv;`
+          + ' a route signs with SigV4 or authenticates with a bearer credential, not both',
+        )
+      }
+      const service = rawSigv4?.service ?? ''
+      const region = rawSigv4?.region ?? ''
+      if (service.length === 0 || region.length === 0) {
+        throw new Error(`llm-pi-ai: provider "${provider}" sigv4 requires a non-empty service and region`)
+      }
+      sigv4 = { service, region }
+    }
     const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
     if (!Number.isFinite(streamIdleTimeoutMs)
       || streamIdleTimeoutMs <= 0
@@ -437,11 +484,12 @@ export function resolveProfiles(
       defaultContextWindow: source.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
       defaultMaxTokens: source.defaultMaxTokens ?? DEFAULT_MAX_TOKENS,
     })
-    const { apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source
+    const { apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, sigv4: _sigv4, ...rest } = source
     resolved.set(provider, {
       ...rest,
       provider,
       displayName,
+      ...sigv4 === undefined ? {} : { sigv4 },
       ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
@@ -456,6 +504,7 @@ export function resolveProfiles(
         displayName,
         ...source.api === undefined ? {} : { api: source.api },
         ...source.baseURL === undefined ? {} : { baseURL: source.baseURL },
+        ...sigv4 === undefined ? {} : { sigv4 },
         models: catalog.models,
         namesCredential: apiKeyEnv !== undefined,
       }),

@@ -20,11 +20,13 @@
  */
 
 import { createProvider } from '@earendil-works/pi-ai'
-import type { Api, ApiKeyAuth, Model, Provider, ProviderStreams } from '@earendil-works/pi-ai'
+import type { Api, ApiKeyAuth, Model, Provider, ProviderRequestOptions, ProviderStreams } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
 import { catalogProvider } from './catalog.ts'
+import { createSigV4Fetch, SIGV4_PLACEHOLDER_KEY } from './sigv4.ts'
+import type { SigV4Config } from './sigv4.ts'
 
 /**
  * Wire protocols a configured route may name, mapped to pi-ai's lazily loaded
@@ -84,6 +86,22 @@ function harnessApiKeyAuth(name: string): ApiKeyAuth {
   }
 }
 
+/**
+ * Api-key auth for a SigV4 route. It resolves a placeholder key regardless of
+ * credential so the provider SDK constructs a client; the signing `fetch`
+ * {@link buildProvider} wraps strips the header that key produces before
+ * signing, so the placeholder never reaches the network. The route needs no
+ * `apiKeyEnv` and resolves no secret.
+ * @param name - display name used as the resolution's status label.
+ * @returns the api-key auth for a SigV4-authenticated route.
+ */
+function sigv4ApiKeyAuth(name: string): ApiKeyAuth {
+  return {
+    name,
+    resolve: () => Promise.resolve({ auth: { apiKey: SIGV4_PLACEHOLDER_KEY }, source: name }),
+  }
+}
+
 /** The resolved route facts provider construction reads. */
 export interface ProviderSpec {
   /** Provider route key; also the `Models` collection key and each model's `provider`. */
@@ -104,6 +122,15 @@ export interface ProviderSpec {
    * request, never at construction.
    */
   namesCredential: boolean
+  /**
+   * SigV4 signing parameters when this route authenticates with AWS SigV4
+   * instead of a bearer credential. Present replaces the route's auth with a
+   * per-request signer: {@link routeAuth} hands the SDK a placeholder key so it
+   * constructs, and {@link buildProvider} wraps every request in a signing
+   * `fetch` that strips that key's header and signs the exact bytes. Absent
+   * keeps the bearer/`apiKeyEnv` path.
+   */
+  sigv4?: SigV4Config
 }
 
 /**
@@ -129,6 +156,10 @@ export interface ProviderSpec {
  * @returns the auth to construct this route's provider with.
  */
 function routeAuth(spec: ProviderSpec, catalog: Provider | undefined): Provider['auth'] {
+  // A SigV4 route signs per request, so its provider-level auth exists only to
+  // let the SDK construct: the placeholder key replaces any catalog auth and
+  // the signing fetch strips the header it produces.
+  if (spec.sigv4 !== undefined) return { apiKey: sigv4ApiKeyAuth(spec.displayName) }
   if (catalog === undefined) return { apiKey: harnessApiKeyAuth(spec.displayName) }
   if (catalog.auth.apiKey !== undefined || !spec.namesCredential) return catalog.auth
   return { ...catalog.auth, apiKey: harnessApiKeyAuth(spec.displayName) }
@@ -159,12 +190,48 @@ function reuseCatalogProvider(base: Provider, spec: ProviderSpec): Provider {
 }
 
 /**
+ * Wrap a provider so every request signs with SigV4. Each request method
+ * injects the signing `fetch` into its options, which pi-ai passes to the SDK
+ * client so it signs the final serialized request. A `fetch` a caller supplied
+ * is replaced: this route must sign, and its transport is the signer's alone.
+ * @param provider - the provider whose requests must be SigV4-signed.
+ * @param config - the SigV4 service and region to sign under.
+ * @returns a provider whose stream and deferred requests are SigV4-signed.
+ */
+function withSigV4Fetch(provider: Provider, config: SigV4Config): Provider {
+  const fetch = createSigV4Fetch(config)
+  // Every option type here has only optional fields, so injecting `fetch`
+  // preserves the caller's option type; the cast states that to the compiler,
+  // which a spread of an optional value otherwise widens.
+  const withFetch = <T extends ProviderRequestOptions>(options: T | undefined): T => ({ ...options, fetch }) as T
+  const fetchDeferred = provider.fetchDeferred
+  const cancelDeferred = provider.cancelDeferred
+  return {
+    ...provider,
+    stream: (model, context, options) => provider.stream(model, context, withFetch(options)),
+    streamSimple: (model, context, options) => provider.streamSimple(model, context, withFetch(options)),
+    ...fetchDeferred === undefined ? {} : {
+      fetchDeferred: (model, handle, options) => fetchDeferred.call(provider, model, handle, withFetch(options)),
+    },
+    ...cancelDeferred === undefined ? {} : {
+      cancelDeferred: (model, handle, options) => cancelDeferred.call(provider, model, handle, withFetch(options)),
+    },
+  }
+}
+
+/**
  * Build the pi-ai provider for one resolved route.
  * @param spec - the resolved route facts.
  * @returns the provider to register in the adapter's `Models` collection.
  * @throws Error when the route names a wire protocol this build cannot serve.
  */
 export function buildProvider(spec: ProviderSpec): Provider {
+  const provider = buildBaseProvider(spec)
+  return spec.sigv4 === undefined ? provider : withSigV4Fetch(provider, spec.sigv4)
+}
+
+/** Construct the route's provider before any SigV4 wrapping. */
+function buildBaseProvider(spec: ProviderSpec): Provider {
   const catalog = catalogProvider(spec.provider)
   // A catalog route keeping its catalog protocol reuses the catalog provider;
   // an explicit protocol means the deployment is repointing the route at a

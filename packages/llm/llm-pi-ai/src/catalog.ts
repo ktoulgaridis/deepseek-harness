@@ -106,6 +106,7 @@ const THINKING_FORMAT_GATE: Record<PiAiThinkingFormat, true> = {
   'qwen-chat-template': true,
   'string-thinking': true,
   'ant-ling': true,
+  'baseten': true,
 }
 
 /** Reasoning-dispatch wire formats a profile may name, most-reached first. */
@@ -141,6 +142,7 @@ export type PiAiChatTemplateVar = Extract<ChatTemplateKwargValue, { $var: string
 const CHAT_TEMPLATE_VAR_GATE: Record<PiAiChatTemplateVar, true> = {
   'thinking.enabled': true,
   'thinking.effort': true,
+  'thinking.budget': true,
 }
 
 /** The request-state placeholders a profile may name. */
@@ -234,6 +236,14 @@ const COMPLETIONS_COMPAT_GATE = {
   sendSessionAffinityHeaders: 'withhold',
   deferredToolsMode: 'withhold',
   sessionAffinityFormat: 'withhold',
+  // Added in pi-ai 0.84; withheld pending a hand-declared route that needs them,
+  // so the offered set stays tied to a current consumer. `chatTemplateArgs` and
+  // the thinking-token-budget fields pair with `baseten`/vLLM dispatch a catalog
+  // route already carries; `supportsFinishReason` is URL-auto-detected.
+  supportsFinishReason: 'withhold',
+  chatTemplateArgs: 'withhold',
+  thinkingTokenBudgetField: 'withhold',
+  supportsThinkingTokenBudget: 'withhold',
 } as const satisfies Record<keyof OpenAICompletionsCompat, CompatDisposition>
 
 /** Disposition of every `OpenAIResponsesCompat` field; a drift gate like the one above. */
@@ -245,6 +255,9 @@ const RESPONSES_COMPAT_GATE = {
   supportsOpenAIGrammarTools: 'withhold',
   supportsToolSearch: 'withhold',
   supportsExplicitPromptCacheMode: 'withhold',
+  // Added in pi-ai 0.84; a deferred-tools model capability the generated
+  // catalog sets, so withheld like its `supportsToolSearch` sibling.
+  supportsAdditionalTools: 'withhold',
 } as const satisfies Record<keyof OpenAIResponsesCompat, CompatDisposition>
 
 /** Disposition of every `AnthropicMessagesCompat` field; a drift gate like the one above. */
@@ -258,6 +271,9 @@ const ANTHROPIC_COMPAT_GATE = {
   supportsStrictTools: 'offer',
   sendSessionAffinityHeaders: 'withhold',
   supportsToolReferences: 'withhold',
+  // Added in pi-ai 0.84; vendor fallback targets with pricing metadata the
+  // catalog sets for named Anthropic models, so withheld from hand-declared routes.
+  allowedFallbackModels: 'withhold',
 } as const satisfies Record<keyof AnthropicMessagesCompat, CompatDisposition>
 
 /** Disposition of every `BedrockCompat` field; a drift gate like the one above. */

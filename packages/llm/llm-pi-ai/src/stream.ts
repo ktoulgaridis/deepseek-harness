@@ -112,6 +112,19 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
       const text = message.errorMessage ?? 'pi-ai stream error'
       return { kind: 'error', failure: { message: text, code: classifyPiAiError(text) } }
     }
+    // pi-ai 0.84 stop reasons that are not terminal for a streamed completion:
+    // `pending` is an unfinished response and `deferred` is a batch handle this
+    // adapter never requests. Either as a stream's terminal message is a
+    // provider protocol surprise, so it fails loud rather than passing as stop.
+    case 'pending':
+    case 'deferred':
+      return {
+        kind: 'error',
+        failure: {
+          message: `model "${message.model}" ended a streamed completion with non-terminal stop reason "${message.stopReason}"`,
+          code: 'PI_AI_ERROR',
+        },
+      }
   }
 }
 

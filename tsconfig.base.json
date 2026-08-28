@@ -340,6 +340,8 @@
       "@deepseek-ai/dsh-llm/invariant": ["./packages/llm/llm/src/invariant.ts"],
       "@deepseek-ai/dsh-llm-deepseek": ["./packages/llm/llm-deepseek/src"],
       "@deepseek-ai/dsh-llm-deepseek/invariant": ["./packages/llm/llm-deepseek/src/invariant.ts"],
+      "@deepseek-ai/dsh-llm-mantle": ["./packages/llm/llm-mantle/src"],
+      "@deepseek-ai/dsh-llm-mantle/invariant": ["./packages/llm/llm-mantle/src/invariant.ts"],
       "@deepseek-ai/dsh-llm-mock-server": ["./packages/test-support/llm-mock-server/src"],
       "@deepseek-ai/dsh-llm-mock-server/invariant": ["./packages/test-support/llm-mock-server/src/invariant.ts"],
       "@deepseek-ai/dsh-llm-pi-ai": ["./packages/llm/llm-pi-ai/src"],

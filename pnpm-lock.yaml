@@ -6315,6 +6315,43 @@ importers:
         specifier: workspace:^
         version: link:../../util/timeout
 
+  packages/llm/llm-mantle:
+    dependencies:
+      '@aws-crypto/sha256-js':
+        specifier: 5.2.0
+        version: 5.2.0
+      '@aws-sdk/credential-provider-node':
+        specifier: 3.972.55
+        version: 3.972.55
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@earendil-works/pi-ai':
+        specifier: ^0.84.2
+        version: 0.84.2(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@smithy/signature-v4':
+        specifier: 5.4.7
+        version: 5.4.7
+      '@smithy/types':
+        specifier: 4.14.4
+        version: 4.14.4
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../llm
+      '@deepseek-ai/dsh-llm-deepseek':
+        specifier: workspace:^
+        version: link:../llm-deepseek
+      '@deepseek-ai/dsh-timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+
   packages/llm/llm-pi-ai:
     dependencies:
       '@deepseek-ai/schemastery':
